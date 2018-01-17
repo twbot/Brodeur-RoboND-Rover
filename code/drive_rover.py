@@ -40,6 +40,16 @@ class RoverState():
     def __init__(self):
         self.start_time = None # To record the start time of navigation
         self.total_time = None # To record total duration of naviagation
+        self.start_pos = None
+        self.last_pos = None
+        self.forward_time = 0 # To record total time going forward
+        self.stuck_time = 0 # To record amount of time stuck
+        self.max_stuck_time = 4 # Max time before determined stuck
+        self.steer_time = 0 # To record amount of time steering same angle
+        self.max_steer_time = 10 # Max time before determined circle steering
+        self.duration_steer = 0
+        self.maneuver_time = 0
+        self.to_steer = 100
         self.img = None # Current camera image
         self.pos = None # Current position (x, y)
         self.yaw = None # Current yaw angle
@@ -47,21 +57,24 @@ class RoverState():
         self.roll = None # Current roll angle
         self.vel = None # Current velocity
         self.steer = 0 # Current steering angle
+        self.past_steer = 0 # Track previous steering angle
         self.throttle = 0 # Current throttle value
         self.brake = 0 # Current brake value
         self.nav_angles = None # Angles of navigable terrain pixels
         self.nav_dists = None # Distances of navigable terrain pixels
+        self.goal_dists = None
+        self.goal_angles = None
         self.ground_truth = ground_truth_3d # Ground truth worldmap
         self.mode = 'forward' # Current mode (can be forward or stop)
-        self.throttle_set = 0.2 # Throttle setting when accelerating
+        self.throttle_set = 0.4 # Throttle setting when accelerating
         self.brake_set = 10 # Brake setting when braking
         # The stop_forward and go_forward fields below represent total count
         # of navigable terrain pixels.  This is a very crude form of knowing
         # when you can keep going and when you should stop.  Feel free to
         # get creative in adding new fields or modifying these!
-        self.stop_forward = 50 # Threshold to initiate stopping
-        self.go_forward = 500 # Threshold to go forward again
-        self.max_vel = 2 # Maximum velocity (meters/second)
+        self.stop_forward =20 # Threshold to initiate stopping
+        self.go_forward = 450 # Threshold to go forward again
+        self.max_vel = 2.5 # Maximum velocity (meters/second)
         # Image output from perception step
         # Update this image to display your intermediate analysis steps
         # on screen in autonomous mode
@@ -69,7 +82,8 @@ class RoverState():
         # Worldmap
         # Update this image with the positions of navigable terrain
         # obstacles and rock samples
-        self.worldmap = np.zeros((200, 200, 3), dtype=np.float) 
+        self.worldmap = np.zeros((200, 200, 3), dtype=np.float)
+        self.discovered_locs = []
         self.samples_pos = None # To store the actual sample positions
         self.samples_to_find = 0 # To store the initial count of samples
         self.samples_located = 0 # To store number of samples located on map
@@ -77,6 +91,7 @@ class RoverState():
         self.near_sample = 0 # Will be set to telemetry value data["near_sample"]
         self.picking_up = 0 # Will be set to telemetry value data["picking_up"]
         self.send_pickup = False # Set to True to trigger rock pickup
+        self.finished = False
 # Initialize our rover 
 Rover = RoverState()
 

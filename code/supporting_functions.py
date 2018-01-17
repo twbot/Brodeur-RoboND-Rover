@@ -4,6 +4,7 @@ from PIL import Image
 from io import BytesIO, StringIO
 import base64
 import time
+from math import floor
 
 # Define a function to convert telemetry strings to float independent of decimal convention
 def convert_to_float(string_to_convert):
@@ -28,11 +29,18 @@ def update_rover(Rover, data):
             if np.isfinite(tot_time):
                   Rover.total_time = tot_time
       # Print out the fields in the telemetry data dictionary
-      print(data.keys())
+      # print(data.keys())
       # The current speed of the rover in m/s
       Rover.vel = convert_to_float(data["speed"])
       # The current position of the rover
       Rover.pos = [convert_to_float(pos.strip()) for pos in data["position"].split(';')]
+      #The starting position of the rover
+      if(Rover.total_time == 0):
+            Rover.start_pos = Rover.pos
+            x_pos = floor(Rover.start_pos[0])
+            y_pos = floor(Rover.start_pos[1])
+            start_position = (x_pos, y_pos)
+            Rover.discovered_locs.append(start_position)
       # The current yaw angle of the rover
       Rover.yaw = convert_to_float(data["yaw"])
       # The current yaw angle of the rover
@@ -50,11 +58,20 @@ def update_rover(Rover, data):
       # Update number of rocks collected
       Rover.samples_collected = Rover.samples_to_find - np.int(data["sample_count"])
 
-      print('speed =',Rover.vel, 'position =', Rover.pos, 'throttle =', 
-      Rover.throttle, 'steer_angle =', Rover.steer, 'near_sample:', Rover.near_sample, 
-      'picking_up:', data["picking_up"], 'sending pickup:', Rover.send_pickup, 
-      'total time:', Rover.total_time, 'samples remaining:', data["sample_count"], 
+      print('Starting Pos: ', Rover.start_pos)
+      print('-------------------------')
+      print('Discovered Pos Size: ', len(Rover.discovered_locs))
+      print('-------------------------')
+      print('mode =',Rover.mode, '|', 'speed =',Rover.vel,'|','steer_time =',Rover.steer_time,'|', 'position =', Rover.pos,'|', 'throttle =', 
+      Rover.throttle,'|', 'steer_angle =', Rover.steer,'|', 'near_sample:', Rover.near_sample,'|', 
+      'picking_up:', data["picking_up"],'|', 'sending pickup:', Rover.send_pickup,'|',
+      'total time:', Rover.total_time,'|', 'samples remaining:', data["sample_count"],'|', 
       'samples collected:', Rover.samples_collected)
+      print('#########################')
+
+      # print('steer = ', Rover.steer)
+      # print('past steer =', Rover.past_steer)
+      # print('steer_time= ', Rover.steer_time)
       # Get the current image from the center camera of the rover
       imgString = data["image"]
       image = Image.open(BytesIO(base64.b64decode(imgString)))
@@ -81,7 +98,7 @@ def create_output_images(Rover):
       likely_nav = navigable >= obstacle
       obstacle[likely_nav] = 0
       plotmap = np.zeros_like(Rover.worldmap)
-      plotmap[:, :, 0] = obstacle
+      plotmap[:, :, 0] = obstacle 
       plotmap[:, :, 2] = navigable
       plotmap = plotmap.clip(0, 255)
       # Overlay obstacle and navigable terrain map with ground truth map
@@ -139,6 +156,9 @@ def create_output_images(Rover):
       cv2.putText(map_add,"  Located: "+str(samples_located), (0, 70), 
                   cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
       cv2.putText(map_add,"  Collected: "+str(Rover.samples_collected), (0, 85), 
+                  cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
+      if(Rover.finished):
+            cv2.putText(map_add,"  Mission COMPLETE: ", (0, 85), 
                   cv2.FONT_HERSHEY_COMPLEX, 0.4, (255, 255, 255), 1)
       # Convert map and vision image to base64 strings for sending to server
       pil_img = Image.fromarray(map_add.astype(np.uint8))
