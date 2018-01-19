@@ -150,8 +150,6 @@ def decision_step(Rover):
                 Rover.brake = Rover.brake_set
                 Rover.steer = 0
                 Rover.finished = True
-            else:
-                Rover.mode = 'forward'
 
     # If in a state where want to pickup a rock send pickup command
     if Rover.near_sample and not Rover.picking_up:
