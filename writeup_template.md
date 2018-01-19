@@ -7,17 +7,18 @@ Simulator Settings:
     - Graphics Quality: Good
 
 
-[//]: # (Image References)
+[//]: # (References)
 
 [image1]: ./calibration_images/example_grid1.jpg
 [image2]: ./calibration_images/angle_example.jpg
 [image3]: ./calibration_images/transform_ex.png
 [image4]: ./calibration_images/thresholding.png
 [image5]: ./calibration_images/coordinate.png
+[gif1]: ./output/giphy.gif
 
 ## Notebook Analysis
 
-Within this Jupyter Notebook are all the functions providing the necessary data that will allow the rover to autonomously navigate its environment.
+Within this [Jupyter Notebook](./code/Rover_Project_Test_Notebook.ipynb) are all the functions providing the necessary data that will allow the rover to autonomously navigate its environment.
 
 #### Sample Data
 
@@ -25,13 +26,13 @@ In the simulator, you can toggle a grid onto the the ground for calibration. The
 
 ![Grid Image][image1]
 
-### Perspective Transform
+#### Perspective Transform
 
 This function allows us to tranform the image from front point-of-view to a top-down point-of-view, allowing us to calculate the average angle based on available path pixels, once color thresholding is applied, which is the next step.
 
 ![Perspect Transform][image3]
 
-### Color Thresholding
+#### Color Thresholding
 
 We will apply three seperate color thresholding functions to account for the navigable terrain, obstacles, and the goals. You could condense this into one function, and pass in the rgb threshold, I just prefer this method as it's cleaner and one can know exactly which threshold you're applying via the naming conventions. Although I only use the goal and navigable terrain thresholding for the rover, I plan on coming back and using obstacle thresholding to closely follow the wall, as it is apparently the most efficient navigation method.
 
@@ -39,11 +40,16 @@ Using the RGB image splitting function, I looked at the intensity values and app
 
 The resultant image is an image that only displays the information we want from that particular function. In the case of the goal_thresholding function, it shows a pixel intesity of 1 at every threshold point.
 
-![Path Threshold][image4]
+![Threshold][image4]
 
-
-### Coordinate Transformation
+#### Coordinate Transformation - Rover
 
 In order for the environment to be correctly observed, we "flipped the pixels" to rover-centric coordinates. It first grabs all non-zero pixels from the resultant images of the color thresholding functions, and flipped to seperate axis, while also applying some filters (subtractng to flip rover x-axis, dividing x axis for steering, etc.)
 
-![Path Threshold][image5]
+![Coordinate Transform - Rover][image5]
+
+#### Coordinate Transformation - World
+
+We then transform the pixels to world map coordinates, allowing us to update the map real time while we traverse the environment. Below is an example of the update.
+
+![World Transform][gif1]
