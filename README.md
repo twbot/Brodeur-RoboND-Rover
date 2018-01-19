@@ -1,54 +1,207 @@
-[//]: # (Image References)
-[image_0]: ./misc/rover_image.jpg
-[![Udacity - Robotics NanoDegree Program](https://s3-us-west-1.amazonaws.com/udacity-robotics/Extra+Images/RoboND_flag.png)](https://www.udacity.com/robotics)
-# Search and Sample Return Project
+# Rover Search and Return - Udacity
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=-cgv_exwGyk
+" target="_blank"><img src="http://img.youtube.com/vi/-cgv_exwGyk/0.jpg" 
+alt="Rover Sim" width="240" height="180" border="10" /></a>
+
+Simulator Settings:
+	- Screen Resolution: 640 X 480
+    - Graphics Quality: Good
 
 
-![alt text][image_0] 
+[//]: # (References)
 
-This project is modeled after the [NASA sample return challenge](https://www.nasa.gov/directorates/spacetech/centennial_challenges/sample_return_robot/index.html) and it will give you first hand experience with the three essential elements of robotics, which are perception, decision making and actuation.  You will carry out this project in a simulator environment built with the Unity game engine.  
+[image1]: ./calibration_images/example_grid1.jpg
+[image2]: ./calibration_images/angle_example.jpg
+[image3]: ./calibration_images/transform_ex.png
+[image4]: ./calibration_images/thresholding.png
+[image5]: ./calibration_images/coordinate.png
+[gif1]: ./output/giphy.gif
 
-## The Simulator
-The first step is to download the simulator build that's appropriate for your operating system.  Here are the links for [Linux](https://s3-us-west-1.amazonaws.com/udacity-robotics/Rover+Unity+Sims/Linux_Roversim.zip), [Mac](	https://s3-us-west-1.amazonaws.com/udacity-robotics/Rover+Unity+Sims/Mac_Roversim.zip), or [Windows](https://s3-us-west-1.amazonaws.com/udacity-robotics/Rover+Unity+Sims/Windows_Roversim.zip).  
+---
 
-You can test out the simulator by opening it up and choosing "Training Mode".  Use the mouse or keyboard to navigate around the environment and see how it looks.
+## Notebook Analysis
 
-## Dependencies
-You'll need Python 3 and Jupyter Notebooks installed to do this project.  The best way to get setup with these if you are not already is to use Anaconda following along with the [RoboND-Python-Starterkit](https://github.com/ryan-keenan/RoboND-Python-Starterkit). 
+Within this [Jupyter Notebook](./code/Rover_Project_Test_Notebook.ipynb) are all the functions providing the necessary data that will allow the rover to autonomously navigate its environment.
 
+#### Sample Data
 
-Here is a great link for learning more about [Anaconda and Jupyter Notebooks](https://classroom.udacity.com/courses/ud1111)
+In the simulator, you can toggle a grid onto the the ground for calibration. The image below is an example. We will use this as a reference for the perspective transform function, allowing us to choose source points, as well as adjust the offset value from the bottom, to account for image data directly in front of the rover.
 
-## Recording Data
-I've saved some test data for you in the folder called `test_dataset`.  In that folder you'll find a csv file with the output data for steering, throttle position etc. and the pathnames to the images recorded in each run.  I've also saved a few images in the folder called `calibration_images` to do some of the initial calibration steps with.  
+![Grid Image][image1]
 
-The first step of this project is to record data on your own.  To do this, you should first create a new folder to store the image data in.  Then launch the simulator and choose "Training Mode" then hit "r".  Navigate to the directory you want to store data in, select it, and then drive around collecting data.  Hit "r" again to stop data collection.
+#### Perspective Transform
 
-## Data Analysis
-Included in the IPython notebook called `Rover_Project_Test_Notebook.ipynb` are the functions from the lesson for performing the various steps of this project.  The notebook should function as is without need for modification at this point.  To see what's in the notebook and execute the code there, start the jupyter notebook server at the command line like this:
+This function allows us to tranform the image from front point-of-view to a top-down point-of-view, allowing us to calculate the average angle based on available path pixels, once color thresholding is applied, which is the next step.
 
-```sh
-jupyter notebook
+![Perspect Transform][image3]
+
+#### Color Thresholding
+
+We will apply three seperate color thresholding functions to account for the navigable terrain, obstacles, and the goals. You could condense this into one function, and pass in the rgb threshold, I just prefer this method as it's cleaner and one can know exactly which threshold you're applying via the naming conventions. Although I only use the goal and navigable terrain thresholding for the rover, I plan on coming back and using obstacle thresholding to closely follow the wall, as it is apparently the most efficient navigation method.
+
+Using the RGB image splitting function, I looked at the intensity values and approximated the values that would be needed in order for the robot to "see" its goal points and its obstacles.
+
+The resultant image is an image that only displays the information we want from that particular function. In the case of the goal_thresholding function, it shows a pixel intesity of 1 at every threshold point.
+
+![Threshold][image4]
+
+#### Coordinate Transformation - Rover
+
+In order for the environment to be correctly observed, we "flipped the pixels" to rover-centric coordinates. It first grabs all non-zero pixels from the resultant images of the color thresholding functions, and flipped to seperate axis, while also applying some filters (subtractng to flip rover x-axis, dividing x axis for steering, etc.)
+
+![Coordinate Transform - Rover][image5]
+
+#### Coordinate Transformation - World
+
+We then transform the pixels to world map coordinates via the rotation function, and then a transform, allowing us to update the map real time while we traverse the environment. The obstacles, navigable terrain, and goal points are colored in respectively. Below is an example of the update.
+
+![World Transform][gif1]
+
+---
+
+## Autonomous Navigation and Mapping
+
+Using the functions defined above as tools, we then define two functions that will allow the Rover to percieve and act upon its environment.
+
+#### Perception
+
+In the perception step, we use the prevoiously defined functions to convert the pixels to the rover coordinate frame, the world coordinate frame, and then convert pixels from the respective rover coordinate frame to a polar coordinate frame, allowing use to determine distance of each pixel from the origin, along with the angle from the x-axis. We calculate the average angle and distance for the navigable terrain parameter, along with the goal point parameter. We also add the floored current pixel positions to a discovered-map parameter, which will allow us to create boundaries (which I'll get back to sometime in the future). The last step was to increase the fidelity of the system by limiting the rover to only map pixel coordinates if its pitch and roll angles are within a predefined limit.
+
+#### Decision
+
+In the decision step, we distinguish between navigable terrain angles and goal point angles. If a goal point is located, the systems primary focus will be to navigate toward the goal point, otherwise its business as usual.
+
+##### Parameter Tracking
+
+Within the navigable terrain block, we keep track of several parameters of the rover. Below each script is a description.
+
+___
+
+1. Stuck
+
+```python
+if (Rover.throttle > 0) and (Rover.vel < 0.3) and (Rover.forward_time > 3) and not(Rover.picking_up):
+            Rover.throttle = 0
+            Rover.mode = 'get_unstuck'
 ```
 
-This command will bring up a browser window in the current directory where you can navigate to wherever `Rover_Project_Test_Notebook.ipynb` is and select it.  Run the cells in the notebook from top to bottom to see the various data analysis steps.  
+Forward_time is a parameter that will allow us to determine the amount of time the rover has been trying to move forward. This in conjunction with a velocity smaller than 0.3 should help us to determine if the rover is stuck. The forward_time parameter is incremented within the forward function. Once all conditions are met, it sets the rover's mode to 'get_unstuck'
 
-The last two cells in the notebook are for running the analysis on a folder of test images to create a map of the simulator environment and write the output to a video.  These cells should run as-is and save a video called `test_mapping.mp4` to the `output` folder.  This should give you an idea of how to go about modifying the `process_image()` function to perform mapping on your data.  
+___
 
-## Navigating Autonomously
-The file called `drive_rover.py` is what you will use to navigate the environment in autonomous mode.  This script calls functions from within `perception.py` and `decision.py`.  The functions defined in the IPython notebook are all included in`perception.py` and it's your job to fill in the function called `perception_step()` with the appropriate processing steps and update the rover map. `decision.py` includes another function called `decision_step()`, which includes an example of a conditional statement you could use to navigate autonomously.  Here you should implement other conditionals to make driving decisions based on the rover's state and the results of the `perception_step()` analysis.
+2. Circle
 
-`drive_rover.py` should work as is if you have all the required Python packages installed. Call it at the command line like this: 
+```python
+if (Rover.steer == 15) or (Rover.steer == -15):
+            if(Rover.steer == Rover.past_steer):
+                Rover.steer_time = Rover.steer_time + 0.03
+            else:
+                Rover.steer_time = 0
+            if(Rover.steer_time > Rover.max_steer_time):
+                Rover.mode = 'steer_anew'
+                Rover.to_steer = Rover.steer
+```
 
-```sh
-python drive_rover.py
-```  
+Past_steer is a parameter that sets itself to the prior steering angle. If the steering angle is equal to either of the extemes, and this steering angle is equal to the prior, increment steering time. Once the steering time is greater than 10 seconds, it sets the rover's mode to 'steer_anew'
 
-Then launch the simulator and choose "Autonomous Mode".  The rover should drive itself now!  It doesn't drive that well yet, but it's your job to make it better!  
+___
 
-**Note: running the simulator with different choices of resolution and graphics quality may produce different results!  Make a note of your simulator settings in your writeup when you submit the project.**
+3. Sample Collected
 
-### Project Walkthrough
-If you're struggling to get started on this project, or just want some help getting your code up to the minimum standards for a passing submission, we've recorded a walkthrough of the basic implementation for you but **spoiler alert: this [Project Walkthrough Video](https://www.youtube.com/watch?v=oJA6QHDPdQw) contains a basic solution to the project!**.
+```python
+if Rover.samples_collected == 6:
+            if(np.abs(Rover.pos[0] - Rover.start_pos[0]) < 6 and np.abs(Rover.pos[1] - Rover.start_pos[1]) < 6):
+                Rover.throttle = 0
+                Rover.brake = Rover.brake_set
+                Rover.steer = 0
+                Rover.finished = True
+
+```
+
+Start_pos is determined in the supplemental_functions.py file, where at the beginning, when total_time equals 0, we set it equal to rovers starting pos. We then track the number of samples the rover has collected, and navigate until the (x,y) position of the rover is within six digits.
+
+##### Modes
+
+When the conditions are met above, the following modes are called. Below each script is a description.
+
+1. Unstuck
+
+```python
+elif Rover.mode == 'get_unstuck':
+            if (Rover.stuck_time < Rover.max_stuck_time):
+                Rover.throttle = -0.2
+                Rover.steer = 15
+                Rover.stuck_time  = Rover.stuck_time + 0.03
+                Rover.mode = 'get_unstuck'
+            else:
+                #In case rover is stuck in different situation
+                if(np.abs(Rover.pos[0] - Rover.last_pos[0]) < 0.3 and np.abs(Rover.pos[1] - Rover.last_pos[1]) < 0.3):
+                    Rover.mode = 'maneuver'
+                    Rover.forward_time = 0
+                    Rover.stuck_time = 0
+                #else rover was freed
+                else:
+                    Rover.brake = Rover.brake_set
+                    Rover.throttle = Rover.throttle_set
+                    Rover.forward_time = 0
+                    Rover.mode = 'forward'
+                    Rover.stuck_time = 0
+
+```
+
+We'll track the amount of time maneuvering out of the stuck position with stuck_time. We set the throttle to a negative value to encourage the rover to move backward at a steering degree of 15. These are arbitrary values I picked, and could obviously be changed to increase the fidelity of the system. Once the max time has passed, we check if the rover is still stuck by checking if the last position and the current position are within a set tolerance. If so, it goes onto a different maneuvering mode. If not, we continue forward.
+
+___
+
+2. Maneuver
+
+```python
+elif Rover.mode == 'maneuver':
+            if(Rover.maneuver_time < 2):
+                Rover.throttle = 0
+                Rover.steer = 15
+                Rover.maneuver_time = Rover.maneuver_time + 0.03
+            else:
+                Rover.mode = 'forward'
+                Rover.maneuver_time = 0
+
+```
+
+Maneuver is called if the rover is unable to become unstuck after "get_unstuck" is called. This just turns the rover without a throttle being applied.
+
+___
+
+3. Steer Anew
+
+```python
+elif Rover.mode == 'steer_anew':
+            Rover.throttle = 0
+            Rover.brake = Rover.brake_set
+            if(Rover.duration_steer < 2):
+                if(Rover.to_steer == 15):
+                    Rover.steer = -15
+                else:
+                    Rover.steer = 15
+                Rover.duration_steer = Rover.duration_steer +0.03
+            else:
+                Rover.mode = 'forward'
+                Rover.throttle = Rover.throttle_set
+                Rover.duration_steer = 0
+                Rover.steer_time = 0
+```
+
+Steer_anew is called once the robot has been determined to be steering in a circle for an x amount of time. It changes the steering angle and continues forward.
+
+---
+
+## Conclusions
+
+On average, the rover maps around 94% of its environment at approximately 80% fidelity. Time taken is a metric I could improve upon, and hope to in the future using boundaries based on the discovere_map parameters I have added. I also wish to increase the fidelity of the system.
+
+##### Future Plans
+
+1. Increase fidelity of the system.
+2. Use map boundaries.
 
 

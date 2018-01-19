@@ -23,6 +23,7 @@ def decision_step(Rover):
         #If rover is trying to move but is stuck, go backwards then continue
         if (Rover.throttle > 0) and (Rover.vel < 0.3) and (Rover.forward_time > 3) and not(Rover.picking_up):
             Rover.throttle = 0
+            Rover.last_pos = Rover.pos
             Rover.mode = 'get_unstuck'
 
         if (Rover.steer == 15) or (Rover.steer == -15):
@@ -167,6 +168,5 @@ def decision_step(Rover):
         Rover.mode = 'forward'
     
     Rover.past_steer = Rover.steer
-    Rover.last_pos = Rover.pos
     return Rover
 
