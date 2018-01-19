@@ -145,7 +145,7 @@ def decision_step(Rover):
 
         #If samples have been located, head to start position
         if Rover.samples_collected == 6:
-            if(np.abs(Rover.pos[0] - Rover.start_pos[0]) < 10 and np.abs(Rover.pos[1] - Rover.start_pos[1]) < 10):
+            if(np.abs(Rover.pos[0] - Rover.start_pos[0]) < 6 and np.abs(Rover.pos[1] - Rover.start_pos[1]) < 6):
                 Rover.throttle = 0
                 Rover.brake = Rover.brake_set
                 Rover.steer = 0
