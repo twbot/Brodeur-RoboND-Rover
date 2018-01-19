@@ -2,6 +2,10 @@
 
 Here is a [video](https://youtu.be/D5wGoIJFGIo) of the Rover navigation
 
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=D5wGoIJFGIo
+" target="_blank"><img src="http://img.youtube.com/vi/D5wGoIJFGIo/0.jpg" 
+alt="Rover Sim" width="240" height="180" border="10" /></a>
+
 Simulator Settings:
 	- Screen Resolution: 640 X 480
     - Graphics Quality: Good
@@ -15,6 +19,8 @@ Simulator Settings:
 [image4]: ./calibration_images/thresholding.png
 [image5]: ./calibration_images/coordinate.png
 [gif1]: ./output/giphy.gif
+
+---
 
 ## Notebook Analysis
 
@@ -50,6 +56,31 @@ In order for the environment to be correctly observed, we "flipped the pixels" t
 
 #### Coordinate Transformation - World
 
-We then transform the pixels to world map coordinates, allowing us to update the map real time while we traverse the environment. Below is an example of the update.
+We then transform the pixels to world map coordinates via the rotation function, and then a transform, allowing us to update the map real time while we traverse the environment. The obstacles, navigable terrain, and goal points are colored in respectively. Below is an example of the update.
 
 ![World Transform][gif1]
+
+---
+
+## Autonomous Navigation and Mapping
+
+Using the functions defined above as tools, we then define two functions that will allow the Rover to percieve and act upon its environment.
+
+#### Perception
+
+In the perception step, we use the prevoiously defined functions to convert the pixels to the rover coordinate frame, the world coordinate frame, and then convert pixels from the respective rover coordinate frame to a polar coordinate frame, allowing use to determine distance of each pixel from the origin, along with the angle from the x-axis. We calculate the average angle and distance for the navigable terrain parameter, along with the goal point parameter. We also add the floored current pixel positions to a discovered-map parameter, which will allow us to create boundaries (which I'll get back to sometime in the future). The last step was to increase the fidelity of the system by limiting the rover to only map pixel coordinates if its pitch and roll angles are within a predefined limit.
+
+#### Decision
+
+In the decision step, we distinguish between navigable terrain angles and goal point angles. If a goal point is located, the systems primary focus will be to navigate toward the goal point, otherwise its business as usual.
+
+Within the navigable terrain block, we keep track of several parameters of the rover.
+
+1. Stuck
+
+```python
+if (Rover.throttle > 0) and (Rover.vel < 0.3) and (Rover.forward_time > 3) and not(Rover.picking_up):
+            Rover.throttle = 0
+            Rover.mode = 'get_unstuck'
+```
+
