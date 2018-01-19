@@ -46,7 +46,7 @@ class RoverState():
         self.stuck_time = 0 # To record amount of time stuck
         self.max_stuck_time = 4 # Max time before determined stuck
         self.steer_time = 0 # To record amount of time steering same angle
-        self.max_steer_time = 10 # Max time before determined circle steering
+        self.max_steer_time = 6 # Max time before determined circle steering
         self.duration_steer = 0
         self.maneuver_time = 0
         self.to_steer = 100
@@ -87,7 +87,7 @@ class RoverState():
         self.samples_pos = None # To store the actual sample positions
         self.samples_to_find = 0 # To store the initial count of samples
         self.samples_located = 0 # To store number of samples located on map
-        self.samples_collected = 0 # To count the number of samples collected
+        self.samples_collected = 6 # To count the number of samples collected
         self.near_sample = 0 # Will be set to telemetry value data["near_sample"]
         self.picking_up = 0 # Will be set to telemetry value data["picking_up"]
         self.send_pickup = False # Set to True to trigger rock pickup

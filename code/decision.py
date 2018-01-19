@@ -1,11 +1,9 @@
 import numpy as np
 
-
 # This is where you can build a decision tree for determining throttle, brake and steer 
 # commands based on the output of the perception_step() function
 def decision_step(Rover):
 
-    Rover.last_pos = Rover.pos
     # Implement conditionals to decide what to do given perception data
     # Here you're all set up with some basic functionality but you'll need to
     # improve on this decision tree to do a good job of navigating autonomously!
@@ -90,14 +88,14 @@ def decision_step(Rover):
         
         #If rover is stuck, maneuver out of conondrum
         elif Rover.mode == 'get_unstuck':
-            if Rover.stuck_time < Rover.max_stuck_time:
+            if (Rover.stuck_time < Rover.max_stuck_time):
                 Rover.throttle = -0.2
                 Rover.steer = 15
                 Rover.stuck_time  = Rover.stuck_time + 0.03
                 Rover.mode = 'get_unstuck'
             else:
                 #In case rover is stuck in different situation
-                if(Rover.last_pos == Rover.pos):
+                if(np.abs(Rover.pos[0] - Rover.last_pos[0]) < 0.3 and np.abs(Rover.pos[1] - Rover.last_pos[1]) < 0.3):
                     Rover.mode = 'maneuver'
                     Rover.forward_time = 0
                     Rover.stuck_time = 0
@@ -111,7 +109,8 @@ def decision_step(Rover):
 
         elif Rover.mode == 'maneuver':
             if(Rover.maneuver_time < 2):
-                Rover.steer = -15
+                Rover.throttle = 0
+                Rover.steer = 15
                 Rover.maneuver_time = Rover.maneuver_time + 0.03
             else:
                 Rover.mode = 'forward'
@@ -144,6 +143,16 @@ def decision_step(Rover):
                 Rover.duration_steer = 0
                 Rover.steer_time = 0
 
+        #If samples have been located, head to start position
+        if Rover.samples_collected == 6:
+            if(np.abs(Rover.pos[0] - Rover.start_pos[0]) < 10 and np.abs(Rover.pos[1] - Rover.start_pos[1]) < 10):
+                Rover.throttle = 0
+                Rover.brake = Rover.brake_set
+                Rover.steer = 0
+                Rover.finished = True
+            else:
+                Rover.mode = 'forward'
+
     # If in a state where want to pickup a rock send pickup command
     if Rover.near_sample and not Rover.picking_up:
         Rover.brake = Rover.brake_set
@@ -158,19 +167,8 @@ def decision_step(Rover):
         Rover.brake = Rover.brake_set
         Rover.forward_time = 0
         Rover.mode = 'forward'
-
-    #If samples have been located, head to start position
-    if Rover.samples_collected == 6:
-        if(np.abs(Rover.pos[0] - Rover.start_pos[0]) < 10 and np.abs(Rover.pos[1] - Rover.start_pos[1]) < 10):
-            Rover.throttle = 0
-            Rover.brake = Rover.brake_set
-            Rover.steer = 0
-            Rover.finished = True
-        else:
-            Rover.mode = 'forward'
-            Rover.throttle = Rover.throttle_set
-            Rover.brake = 0
     
     Rover.past_steer = Rover.steer
+    Rover.last_pos = Rover.pos
     return Rover
 
